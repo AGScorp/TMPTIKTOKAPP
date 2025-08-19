@@ -1,37 +1,17 @@
+version: "3.9"
+
 services:
-  web:
+  holoapp:
+    container_name: holoapp
     build:
       context: .
+      dockerfile: Dockerfile
     env_file:
       - .env
     ports:
-      - "8100:8100"
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8100/health || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
-    restart: unless-stopped
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: holover
-    ports:
-      - "5432:5432"
+      - "${PORT:-8100}:${PORT:-8100}"
+    # bind mount โค้ดจาก host -> container เพื่อให้แก้ไฟล์แล้วอัปเดตทันที (uvicorn --reload)
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d holover"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      - ./:/app
+    command: sh -c 'uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8100} --reload'
     restart: unless-stopped
-
-volumes:
-  pgdata:

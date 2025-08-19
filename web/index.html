@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>holoApp — TikTok Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23111' stroke='%236c5ce7' stroke-width='4'/%3E%3Ctext x='32' y='40' font-size='28' text-anchor='middle' fill='%23e6e6e6' font-family='sans-serif'%3EH%3C/text%3E%3C/svg%3E">
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans Thai", "Noto Sans", Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
+    header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #111; color: #fff; position: sticky; top: 0; }
+    .brand { font-weight: 700; letter-spacing: 0.2px; }
+    .actions { display: flex; gap: 8px; }
+    .btn { border: 1px solid #444; background: #1e1e1e; color: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+    .btn.primary { background: #6c5ce7; border-color: #6c5ce7; }
+    .btn.warn { background: #e74c3c; border-color: #e74c3c; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    main { padding: 20px 16px; max-width: 1100px; margin: 0 auto; }
+    .card { border: 1px solid #2a2a2a; border-radius: 12px; padding: 16px; margin-bottom: 16px; background: #181818; color: #e6e6e6; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+    .video { border: 1px solid #2a2a2a; border-radius: 10px; padding: 10px; background: #131313; }
+    .muted { opacity: .8; }
+    input, textarea, select { background: #111; border: 1px solid #333; color: #eee; padding: 8px; border-radius: 8px; width: 100%; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .row > * { flex: 1 1 auto; }
+    code { background: #0e0e0e; border: 1px solid #2a2a2a; padding: 2px 6px; border-radius: 6px; }
+    a { color: #aab4ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    footer { text-align: center; padding: 24px; color: #aaa; }
+    .hide { display: none !important; }
+    .avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 1px solid #333; }
+    .video-cover { width: 100%; border-radius: 8px; object-fit: cover; aspect-ratio: 16 / 9; border: 1px solid #2a2a2a; background: #0e0e0e; }
+    .kbd { border: 1px solid #444; padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #101010; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">holoApp</div>
+    <div class="actions">
+      <button id="loginBtn" class="btn primary" onclick="location.href='/auth/login?alt=1'">เข้าสู่ระบบด้วย TikTok</button>
+      <button id="logoutBtn" class="btn warn" onclick="window.holo && window.holo.logoutClick && window.holo.logoutClick()">ออกจากระบบ</button>
+      <a class="btn" href="/docs" target="_blank" rel="noreferrer">API Docs</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" id="statusCard">
+      <div id="statusText" class="muted">กำลังตรวจสอบสถานะการเข้าสู่ระบบ...</div>
+      <div id="debugInfo" class="muted" style="margin-top:6px"></div>
+    </section>
+
+<section class="card" id="devCard">
+      <h3>ทดสอบด้วย Token (สำหรับตรวจการทำงานแบบไม่ใช้คุกกี้)</h3>
+      <div class="row">
+        <input id="accessInput" placeholder="Access Token" />
+        <input id="refreshInput" placeholder="Refresh Token" />
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button id="saveTokensBtn" class="btn" onclick="window.holo && window.holo.saveTokensFromInputs && window.holo.saveTokensFromInputs()">บันทึก Token</button>
+        <button id="clearTokensBtn" class="btn warn" onclick="window.holo && window.holo.clearTokensAndUI && window.holo.clearTokensAndUI()">ลบ Token</button>
+      </div>
+      <div class="muted">ใส่ Access/Refresh Token แล้วกด "บันทึก Token" จากนั้นลองโหลดข้อมูลผู้ใช้และวิดีโอได้ทันที</div>
+    </section>
+    <section class="card hide" id="meCard">
+      <h3>ข้อมูลผู้ใช้</h3>
+      <div class="row" style="align-items:flex-start">
+        <img id="meAvatar" class="avatar" alt="avatar" />
+        <div style="flex:3 1 300px">
+          <div><b>ชื่อ:</b> <span id="meDisplayName">-</span></div>
+          <div><b>Open ID:</b> <code id="meOpenId">-</code></div>
+          <div><b>ลิงก์โปรไฟล์:</b> <a id="meDeepLink" href="#" target="_blank" rel="noreferrer">เปิดดู</a></div>
+          <div class="muted" style="margin-top:6px">
+            ผู้ติดตาม: <span id="meFollower">0</span> · กำลังติดตาม: <span id="meFollowing">0</span> · ถูกใจทั้งหมด: <span id="meLikes">0</span> · วิดีโอ: <span id="meVideos">0</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card hide" id="videoControls">
+      <h3>รายการวิดีโอ</h3>
+      <div class="row">
+        <label style="max-width:180px">
+          จำนวนต่อหน้า
+          <input id="maxCount" type="number" min="1" max="50" value="20"/>
+        </label>
+        <div class="row" style="flex:0 0 auto">
+          <button id="loadVideosBtn" class="btn" onclick="window.holo && window.holo.loadFirstPage && window.holo.loadFirstPage()">โหลดวิดีโอ</button>
+          <button id="nextPageBtn" class="btn" onclick="window.holo && window.holo.loadNextPage && window.holo.loadNextPage()">หน้าถัดไป</button>
+          <span class="muted">ใช้ <span class="kbd">Alt</span>+<span class="kbd">N</span> เพื่อหน้าถัดไป</span>
+        </div>
+      </div>
+      <div class="muted" id="videoCursorInfo">cursor: -</div>
+    </section>
+
+    <section class="card hide" id="videosCard">
+      <div id="videosGrid" class="grid"></div>
+    </section>
+
+    <section class="card hide" id="queryCard">
+      <h3>ตรวจสอบวิดีโอตาม ID</h3>
+      <div class="row">
+        <textarea id="videoIds" rows="3" placeholder="ใส่ video_ids คั่นบรรทัดละหนึ่งค่า"></textarea>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button id="queryBtn" class="btn" onclick="window.holo && window.holo.runQuery && window.holo.runQuery()">Query</button>
+      </div>
+      <pre id="queryResult" class="muted" style="overflow:auto; max-height:320px"></pre>
+    </section>
+  </main>
+
+  <footer>
+    © 2025 holoApp • TikTok API v2 integration
+  </footer>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

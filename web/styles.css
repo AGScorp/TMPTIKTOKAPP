@@ -1,0 +1,22 @@
+/* holoApp styles (override/utility) */
+:root { --primary:#6c5ce7; --danger:#e74c3c; --border:#2a2a2a; --bg:#111; --bg2:#181818; --text:#e6e6e6; --muted:#aaa; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.btn:hover { filter: brightness(1.08); }
+.btn.primary:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent); }
+.btn.warn:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 30%, transparent); }
+
+.card h3 { margin: 0 0 10px 0; }
+.muted { color: var(--muted); }
+
+.grid .video:hover { border-color: #3a3a3a; transform: translateY(-1px); transition: all .15s ease; }
+.video .video-cover { background: #0e0e0e; }
+
+@media (max-width: 520px) {
+  header { flex-wrap: wrap; gap: 8px; }
+  .actions { width: 100%; justify-content: flex-end; }
+}

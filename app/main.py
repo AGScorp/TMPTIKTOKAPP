@@ -1,59 +1,60 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.staticfiles import StaticFiles
-# ProxyHeadersMiddleware disabled; not available in current Starlette version
-import logging
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+from app.core.config import get_settings
+from urllib.parse import urlparse
+import os
 
-from app.core.config import settings
-from app.core.logging import configure_logging
-from app.middleware.errors import add_error_handlers
-from app.middleware.observability import RequestContextMiddleware
-from app.middleware.security import SecurityHeadersMiddleware
+app = FastAPI(title="holoApp", version="0.1.0")
 
-# DB metadata for optional auto-create in dev
-from app.db.session import engine
-from app.db.models import Base
+settings = get_settings()
 
-logger = logging.getLogger(__name__)
-
-configure_logging()
-
-app = FastAPI(title=settings.APP_NAME)
-
-# Middleware
-# app.add_middleware(ProxyHeadersMiddleware)  # disabled
-app.add_middleware(RequestContextMiddleware)
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()],
+    allow_origin_regex=".*",  # อนุญาตทุก origin เพื่อให้ frontend ติดต่อ backend ได้แม้ต่างโดเมน
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(SecurityHeadersMiddleware)
 
-# Error handlers
-add_error_handlers(app)
+# Static files
+if os.path.isdir("web"):
+    app.mount("/static", StaticFiles(directory="web"), name="static")
 
-# Static files (for frontend assets)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-# Routers
-from app.routers import auth, content, display, web
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-app.include_router(content.router, prefix="/content", tags=["content"])
-app.include_router(display.router, prefix="/display", tags=["display"])
-app.include_router(web.router, tags=["web"])
-
-@app.on_event("startup")
-def on_startup() -> None:
-    # Best effort: create tables in dev; in prod use Alembic migrations
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables are ensured (create_all).")
-    except Exception:
-        logger.exception("Failed to ensure database tables. Run migrations or check DATABASE_URL.")
-
-@app.get("/health")
-def health():
+@app.get("/healthz")
+def healthz():
     return {"status": "ok"}
+
+@app.get("/")
+def root():
+    index_path = os.path.join("web", "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path)
+    return JSONResponse({"message": "holoApp backend is running. Create web/index.html to serve UI.", "docs": "/docs"})
+
+# Include routers if available
+try:
+    from app.routers import auth, videos
+    app.include_router(auth.router, prefix="/auth", tags=["auth"])
+    app.include_router(videos.router, prefix="/api", tags=["api"])
+except Exception:
+    # Routers may not exist yet during initial setup
+    pass
+@app.get("/config")
+def public_config(request: Request):
+    # ส่งค่า public config จาก .env ให้ frontend ใช้งาน (ไม่รวม secret)
+    base_url = str(request.base_url)
+    return {
+        "api_base_url": base_url,
+        "host": settings.HOST,
+        "port": settings.PORT,
+        "tiktok": {
+            "auth_base_url": settings.TIKTOK_AUTH_BASE_URL,
+            "redirect_uri": settings.TIKTOK_REDIRECT_URI,
+            "scopes": settings.scopes_list,
+            "base_url": settings.TIKTOK_BASE_URL,
+            "client_key": settings.TIKTOK_CLIENT_KEY,
+        },
+    }

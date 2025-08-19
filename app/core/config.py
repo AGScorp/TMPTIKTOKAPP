@@ -1,44 +1,33 @@
-from pydantic_settings import BaseSettings
-from pydantic import Field
+from functools import lru_cache
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env at import time (explicit python-dotenv)
+# This ensures all modules (not only Pydantic) see the vars via os.environ
+load_dotenv(dotenv_path=".env", override=False)
 
 class Settings(BaseSettings):
-    APP_NAME: str = Field(default="Holover App")
-    ENV: str = Field(default="development")
-    HOST: str = Field(default="0.0.0.0")
-    PORT: int = Field(default=8000)
-    LOG_LEVEL: str = Field(default="INFO")
-    CORS_ORIGINS: str = Field(default="http://localhost:3000,http://localhost:8000")
+    HOST: str = "0.0.0.0"
+    PORT: int = 8100
 
-    SECRET_KEY: str = Field(default="change-me")
-    ENCRYPTION_KEY: str = Field(default="change-me-32-bytes")
+    TIKTOK_CLIENT_KEY: str = "sbawvu604r2qvzcmkn"
+    TIKTOK_CLIENT_SECRET: str = "6J0rKlTMHi85bUx4nBZSz7EJ0fs40ehv"
+    TIKTOK_REDIRECT_URI: str = "https://ai-car-damage.agilesoftgroup.com/auth/callback"
+    TIKTOK_SCOPES: str = "user.info.basic,user.info.profile,user.info.stats,video.upload,video.publish"
+    TIKTOK_BASE_URL: str = "https://open.tiktokapis.com/v2"
+    TIKTOK_AUTH_BASE_URL: str = "https://www.tiktok.com"
 
-    DATABASE_URL: str = Field(default="postgresql+psycopg://postgres:postgres@localhost:5432/holover")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+    )
 
-    TIKTOK_CLIENT_KEY: str = Field(default="")
-    TIKTOK_CLIENT_SECRET: str = Field(default="")
-    TIKTOK_REDIRECT_URI: str = Field(default="http://localhost:8000/auth/callback")
-    TIKTOK_SCOPES: str = Field(default="user.info.basic,user.info.profile,user.info.stats,video.upload,video.publish")
-    TIKTOK_BASE_URL: str = Field(default="https://open.tiktokapis.com/v2")
-    # Authorization endpoint base (separate host from API base)
-    TIKTOK_AUTH_BASE_URL: str = Field(default="https://www.tiktok.com/v2/auth/authorize/")
-    # OAuth consent behavior controls
-    # Set via environment variables:
-    # - TIKTOK_FORCE_REVOKE=true  -> บังคับให้ TikTok แสดงหน้าขออนุมัติใหม่ (revoke prior grant)
-    # - TIKTOK_PROMPT=consent     -> ขอให้ TikTok แสดง consent screen เสมอ (ถ้าแพลตฟอร์มรองรับ)
-    TIKTOK_FORCE_REVOKE: bool = Field(default=False)
-    TIKTOK_PROMPT: str = Field(default="")
+    @property
+    def scopes_list(self):
+        return [s.strip() for s in (self.TIKTOK_SCOPES or "").split(",") if s.strip()]
 
-    RATE_LIMIT_MAX_RETRIES: int = Field(default=5)
-    RATE_LIMIT_BASE_DELAY_MS: int = Field(default=200)
-    RATE_LIMIT_MAX_DELAY_MS: int = Field(default=5000)
-    HTTP_TIMEOUT_SECONDS: int = Field(default=30)
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
 
-    # Content upload (Pull-by-URL) whitelist (comma-separated URL prefixes)
-    CONTENT_ALLOWED_URL_PREFIXES: str = Field(default="")
-
-    model_config = {
-        "env_file": ".env",
-        "case_sensitive": False,
-    }
-
-settings = Settings()
