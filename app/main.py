@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
+# ProxyHeadersMiddleware disabled; not available in current Starlette version
 import logging
 
 from app.core.config import settings
@@ -20,6 +21,7 @@ configure_logging()
 app = FastAPI(title=settings.APP_NAME)
 
 # Middleware
+# app.add_middleware(ProxyHeadersMiddleware)  # disabled
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(
     CORSMiddleware,

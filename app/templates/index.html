@@ -41,6 +41,7 @@
         <p>ไปยังหน้าต่างอนุมัติจาก TikTok (dev-mode จะคืนค่าโทเค็นจำลองหลัง callback).</p>
         <div class="row">
           <a href="/auth/login" class="btn">ไปหน้า Login /auth/login</a>
+          <a href="/auth/login?force=1&prompt=consent" class="btn warning outline" title="บังคับให้ TikTok แสดงหน้าขออนุมัติใหม่">Login (บังคับขออนุมัติ)</a>
           <button id="client-token-btn" class="btn outline">ขอโทเค็นระดับไคลเอ็นต์</button>
         </div>
         <pre id="client-token-output" class="code"></pre>

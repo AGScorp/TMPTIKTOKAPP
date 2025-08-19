@@ -51,15 +51,50 @@ class OAuthService:
             return False
         return (time.time() - ts) <= max_age_seconds
 
-    def build_auth_url(self, state: str) -> str:
+    def generate_pkce_pair(self) -> tuple[str, str]:
         """
-        Compose TikTok authorize URL. PKCE is optional and can be added later if needed.
+        Generate PKCE code_verifier and code_challenge (S256).
+        Returns (code_verifier, code_challenge).
+        """
+        # RFC 7636: code_verifier length 43-128 characters, unreserved charset
+        verifier = secrets.token_urlsafe(64)[:128]
+        digest = hashlib.sha256(verifier.encode()).digest()
+        challenge = base64.urlsafe_b64encode(digest).decode().rstrip("=")
+        return verifier, challenge
+
+    def build_auth_url(
+        self,
+        state: str,
+        code_challenge: Optional[str] = None,
+        redirect_uri: Optional[str] = None,
+        force_revoke: Optional[bool] = None,
+        prompt: Optional[str] = None,
+    ) -> str:
+        """
+        Compose TikTok authorize URL. Adds PKCE if code_challenge provided.
+        Optionally override redirect_uri for host/port flexibility.
+        Supports forcing consent screen via:
+          - settings.TIKTOK_FORCE_REVOKE or force_revoke=True -> adds revoke=1
+          - settings.TIKTOK_PROMPT or prompt="consent"       -> adds prompt=consent
         """
         params = {
             "client_key": self.client_key,
             "response_type": "code",
-            "redirect_uri": self.redirect_uri,
+            "redirect_uri": redirect_uri or self.redirect_uri,
             "scope": self.scopes,
             "state": state,
         }
+        if code_challenge:
+            params["code_challenge"] = code_challenge
+            params["code_challenge_method"] = "S256"
+
+        # Resolve effective flags (param overrides settings)
+        eff_force = settings.TIKTOK_FORCE_REVOKE if force_revoke is None else bool(force_revoke)
+        eff_prompt = (settings.TIKTOK_PROMPT or "").strip() if prompt is None else (prompt or "").strip()
+
+        if eff_force:
+            params["revoke"] = "1"
+        if eff_prompt:
+            params["prompt"] = eff_prompt
+
         return f"{self.auth_base}?{urlencode(params)}"

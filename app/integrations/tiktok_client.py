@@ -52,7 +52,7 @@ class TikTokClient:
         ),
         retry=retry_if_exception_type((httpx.HTTPError, TikTokAPIError)),
     )
-    async def exchange_code_for_tokens(self, code: str, redirect_uri: Optional[str] = None) -> Dict[str, Any]:
+    async def exchange_code_for_tokens(self, code: str, redirect_uri: Optional[str] = None, code_verifier: Optional[str] = None) -> Dict[str, Any]:
         """
         Exchange authorization code for access/refresh tokens.
         Dev-mode stub when app credentials are placeholders or ENV=development.
@@ -74,14 +74,19 @@ class TikTokClient:
             "grant_type": "authorization_code",
             "redirect_uri": redirect_uri or settings.TIKTOK_REDIRECT_URI,
         }
+        if code_verifier:
+            payload["code_verifier"] = code_verifier
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(self._token_url(), json=payload)
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            resp = await client.post(self._token_url(), data=payload, headers=headers)
             if resp.status_code == 429:
                 # trigger retry/backoff
                 raise TikTokAPIError("rate_limited")
             if resp.status_code >= 500:
                 raise TikTokAPIError(f"server_error:{resp.status_code}")
+            if resp.status_code >= 400:
+                raise TikTokAPIError(f"bad_status:{resp.status_code}:{resp.text[:200]}")
 
             data = resp.json()
             # TikTok responses typically include an error object when failing
@@ -121,11 +126,14 @@ class TikTokClient:
         }
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(self._token_url(), json=payload)
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            resp = await client.post(self._token_url(), data=payload, headers=headers)
             if resp.status_code == 429:
                 raise TikTokAPIError("rate_limited")
             if resp.status_code >= 500:
                 raise TikTokAPIError(f"server_error:{resp.status_code}")
+            if resp.status_code >= 400:
+                raise TikTokAPIError(f"bad_status:{resp.status_code}:{resp.text[:200]}")
             data = resp.json()
             if isinstance(data, dict) and data.get("error"):
                 raise TikTokAPIError(str(data["error"]))
@@ -148,13 +156,20 @@ class TikTokClient:
         if self._is_dev_mode() or (access_token or "").startswith("dev_"):
             return {"placeholder": True, "revoked": True}
 
-        headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+        payload = {
+            "client_key": self.client_key,
+            "token": access_token,
+            "token_type_hint": "access_token",
+        }
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(self._revoke_url(), headers=headers, json={})
+            resp = await client.post(self._revoke_url(), data=payload, headers=headers)
             if resp.status_code == 429:
                 raise TikTokAPIError("rate_limited")
             if resp.status_code >= 500:
                 raise TikTokAPIError(f"server_error:{resp.status_code}")
+            if resp.status_code >= 400:
+                raise TikTokAPIError(f"bad_status:{resp.status_code}:{resp.text[:200]}")
             data = resp.json()
             if isinstance(data, dict) and data.get("error"):
                 raise TikTokAPIError(str(data["error"]))
@@ -189,15 +204,27 @@ class TikTokClient:
 
         headers = {
             "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
+        }
+        params = {
+            "fields": ",".join([
+                "open_id",
+                "display_name",
+                "profile_image_url",
+                "follower_count",
+                "following_count",
+                "likes_count",
+                "video_count",
+            ])
         }
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.get(self._user_info_url(), headers=headers)
+            resp = await client.get(self._user_info_url(), headers=headers, params=params)
             if resp.status_code == 429:
                 raise TikTokAPIError("rate_limited")
             if resp.status_code >= 500:
                 raise TikTokAPIError(f"server_error:{resp.status_code}")
+            if resp.status_code >= 400:
+                raise TikTokAPIError(f"bad_status:{resp.status_code}:{resp.text[:200]}")
 
             data = resp.json()
             if isinstance(data, dict) and data.get("error"):
@@ -234,11 +261,14 @@ class TikTokClient:
         }
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(self._token_url(), json=payload)
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            resp = await client.post(self._token_url(), data=payload, headers=headers)
             if resp.status_code == 429:
                 raise TikTokAPIError("rate_limited")
             if resp.status_code >= 500:
                 raise TikTokAPIError(f"server_error:{resp.status_code}")
+            if resp.status_code >= 400:
+                raise TikTokAPIError(f"bad_status:{resp.status_code}:{resp.text[:200]}")
             data = resp.json()
             if isinstance(data, dict) and data.get("error"):
                 raise TikTokAPIError(str(data["error"]))

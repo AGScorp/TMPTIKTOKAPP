@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     TIKTOK_BASE_URL: str = Field(default="https://open.tiktokapis.com/v2")
     # Authorization endpoint base (separate host from API base)
     TIKTOK_AUTH_BASE_URL: str = Field(default="https://www.tiktok.com/v2/auth/authorize/")
+    # OAuth consent behavior controls
+    # Set via environment variables:
+    # - TIKTOK_FORCE_REVOKE=true  -> บังคับให้ TikTok แสดงหน้าขออนุมัติใหม่ (revoke prior grant)
+    # - TIKTOK_PROMPT=consent     -> ขอให้ TikTok แสดง consent screen เสมอ (ถ้าแพลตฟอร์มรองรับ)
+    TIKTOK_FORCE_REVOKE: bool = Field(default=False)
+    TIKTOK_PROMPT: str = Field(default="")
 
     RATE_LIMIT_MAX_RETRIES: int = Field(default=5)
     RATE_LIMIT_BASE_DELAY_MS: int = Field(default=200)

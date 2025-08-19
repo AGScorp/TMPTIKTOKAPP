@@ -10,14 +10,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md /app/
-RUN pip install --upgrade pip && pip install .
+COPY requirements.txt /app/
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY app /app/app
 COPY .env.example /app/.env.example
 
-EXPOSE 8000
+EXPOSE 8100
 
 ENV ENV=production
 
-CMD ["uvicorn", "app.main:app", "--host=0.0.0.0", "--port=8000"]
+CMD ["uvicorn", "app.main:app", "--host=0.0.0.0", "--port=8100"]
